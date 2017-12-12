@@ -79,8 +79,9 @@ func (p *Page) Init() {
 		p.ImgMap[img] = ""
 	})
 	doc.Find("link").Each(func(_ int, s *goquery.Selection) {
+		rel, _ := s.Attr("rel")
 		css, _ := s.Attr("href")
-		if strings.Contains(css, "css") {
+		if strings.Contains(rel, "stylesheet") {
 			p.CSSMap[css] = ""
 		}
 	})
@@ -251,8 +252,9 @@ func (p *Page) RewriteDoc() {
 		s.SetAttr("src", p.ImgMap[img])
 	})
 	p.Doc.Find("link").Each(func(_ int, s *goquery.Selection) {
+		rel, _ := s.Attr("rel")
 		css, _ := s.Attr("href")
-		if strings.Contains(css, "css") {
+		if strings.Contains(rel, "stylesheet") {
 			s.SetAttr("href", p.CSSMap[css])
 		}
 	})
