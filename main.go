@@ -33,5 +33,4 @@ func main() {
 	ctx.OutputPath = outputPath
 	logrus.Info("Launched scraping...")
 	ctx.Run()
-	//cssParse()
 }

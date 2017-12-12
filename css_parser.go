@@ -9,25 +9,36 @@ import (
 	"regexp"
 	"strings"
 
+	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
 // ExtractURL 文字列からurl("http://****") を抽出
-func (p *Page) ExtractURL(line string) {
-	re := regexp.MustCompile(`url\(\"http.*?\"\)`)
+func (p *Page) ExtractURL(line, cssURL string) {
+	re := regexp.MustCompile(`url\(.*?\)`)
 	result := re.FindAllStringSubmatch(line, -1)
 	for _, v := range result {
-		url := strings.Replace(v[0], "url(\"", "", 1)
-		url = strings.Replace(url, "\")", "", 1)
-		_, fileName := path.Split(url)
-		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", ctx.OutputPath, p.UUID, fileTypeIMG, fileName)
+		url := replaceCSSImgURL(v[0])
+		ext := filepath.Ext(url)
+		fileFullPath := fmt.Sprintf("%s/%s/%s/%s%s", ctx.OutputPath, p.UUID, fileTypeIMG, uuid.NewV4().String(), ext)
 		abs, _ := filepath.Abs("./")
-		p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
-		downloadFileInCSS(p, url)
+		if strings.Contains(url, "../") {
+			orgURL := url
+			relativePath, _ := path.Split(cssURL)
+			relativePath = strings.Replace(relativePath, p.DomainScheme+"://", "", 1)
+			pathArray := strings.Split(relativePath, "/")
+			relativePath = p.DomainScheme + "://" + strings.Join(pathArray[:len(pathArray)-2], "/")
+			url = strings.Replace(url, "../", "", 1)
+			url = strings.Join([]string{relativePath, url}, "/")
+			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
+		} else {
+			p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
+		}
+		downloadFileInCSS(p, url, fileFullPath)
 	}
 }
 
-func downloadFileInCSS(p *Page, url string) {
+func downloadFileInCSS(p *Page, url string, savePath string) {
 	logrus.Info(url)
 	response, err := http.Get(url)
 	if err != nil {
@@ -37,9 +48,7 @@ func downloadFileInCSS(p *Page, url string) {
 	if err != nil {
 		return
 	}
-	_, fileName := path.Split(url)
-	fileFullPath := fmt.Sprintf("%s/%s/%s/%s", ctx.OutputPath, p.UUID, fileTypeIMG, fileName)
-	writeFile(fileFullPath, body)
+	writeFile(savePath, body)
 }
 
 func replaceCSSImg(p *Page, text string) string {
@@ -47,4 +56,14 @@ func replaceCSSImg(p *Page, text string) string {
 		text = strings.Replace(text, k, v, 1)
 	}
 	return text
+}
+
+func replaceCSSImgURL(url string) string {
+	url = strings.Replace(url, "url(", "", 1)
+	url = strings.Replace(url, ")", "", 1)
+	url = strings.Replace(url, "\"", "", 1)
+	url = strings.Replace(url, "\"", "", 1)
+	url = strings.Replace(url, "'", "", 1)
+	url = strings.Replace(url, "'", "", 1)
+	return url
 }
