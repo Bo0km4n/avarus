@@ -14,6 +14,8 @@ func (ctx *Context) Run() error {
 	page := NewPage(ctx.BaseURL)
 	page.Init()
 	page.FetchFiles()
+	page.RewriteDoc()
+	page.WriteHTML()
 	logrus.Info("Done!")
 	return nil
 }

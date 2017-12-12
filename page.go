@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"unsafe"
 
 	"github.com/sirupsen/logrus"
 
@@ -38,18 +39,20 @@ type Page struct {
 	CSSMap       map[string]string
 	LinkMap      map[string]string
 	JSMap        map[string]string
+	CSSImgMap    map[string]string
 }
 
 // NewPage Page生成
 func NewPage(url string) Page {
 	page := Page{
-		Level:   0,
-		URL:     url,
-		HTML:    "",
-		ImgMap:  map[string]string{},
-		LinkMap: map[string]string{},
-		JSMap:   map[string]string{},
-		CSSMap:  map[string]string{},
+		Level:     0,
+		URL:       url,
+		HTML:      "",
+		ImgMap:    map[string]string{},
+		LinkMap:   map[string]string{},
+		JSMap:     map[string]string{},
+		CSSMap:    map[string]string{},
+		CSSImgMap: map[string]string{},
 	}
 	return page
 }
@@ -118,8 +121,6 @@ func (p *Page) FetchFiles() {
 	p.FetchCSS()
 	p.FetchIMG()
 	p.FetchJS()
-	p.RewriteDoc()
-	p.WriteHTML()
 }
 
 // FetchCSS cssファイル取得
@@ -216,7 +217,10 @@ func (p *Page) DownloadFile(url, t, hashKey string) error {
 	switch t {
 	case fileTypeCSS:
 		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", ctx.OutputPath, p.UUID, fileTypeCSS, fileName)
-		writeFile(fileFullPath, body)
+		p.ExtractURL(string(body))
+		css := replaceCSSImg(p, string(body))
+		bs := *(*[]byte)(unsafe.Pointer(&css))
+		writeFile(fileFullPath, bs)
 		// rewrite map
 		abs, _ := filepath.Abs("./")
 		p.CSSMap[hashKey] = strings.Join([]string{abs, fileFullPath}, "/")
