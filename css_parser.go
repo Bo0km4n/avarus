@@ -51,7 +51,7 @@ func downloadFileInCSS(p *Page, url string, savePath string) {
 	writeFile(savePath, body)
 }
 
-func replaceCSSImg(p *Page, text string) string {
+func replaceCSSImgText(p *Page, text string) string {
 	for k, v := range p.CSSImgMap {
 		text = strings.Replace(text, k, v, 1)
 	}

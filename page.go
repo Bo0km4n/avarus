@@ -218,7 +218,7 @@ func (p *Page) DownloadFile(url, t, hashKey string) error {
 	case fileTypeCSS:
 		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", ctx.OutputPath, p.UUID, fileTypeCSS, fileName)
 		p.ExtractURL(string(body), url)
-		css := replaceCSSImg(p, string(body))
+		css := replaceCSSImgText(p, string(body))
 		bs := *(*[]byte)(unsafe.Pointer(&css))
 		writeFile(fileFullPath, bs)
 		// rewrite map
