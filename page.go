@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/base64"
+	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"github.com/sirupsen/logrus"
@@ -43,9 +44,9 @@ type Page struct {
 }
 
 // NewPage Page生成
-func NewPage(url string) Page {
+func NewPage(url string, level int) Page {
 	page := Page{
-		Level:     0,
+		Level:     level,
 		URL:       url,
 		HTML:      "",
 		ImgMap:    map[string]string{},
@@ -55,6 +56,14 @@ func NewPage(url string) Page {
 		CSSImgMap: map[string]string{},
 	}
 	return page
+}
+
+func (p *Page) Exec() {
+	p.Init()
+	p.QueuingPages()
+	p.FetchFiles()
+	p.RewriteDoc()
+	p.WriteHTML()
 }
 
 // Init 構造体初期化
@@ -89,8 +98,44 @@ func (p *Page) Init() {
 		}
 	})
 	p.ParseDomain()
-	p.UUID = base64.StdEncoding.EncodeToString([]byte(p.URL))
+	h := sha1.New()
+	h.Write([]byte(p.URL))
+	bs := h.Sum(nil)
+	p.UUID = fmt.Sprintf("%x", bs)
 	p.SetPath(ctx.OutputPath)
+}
+
+// QueuingPages リンクページを格納
+func (p *Page) QueuingPages() {
+	// Link書き換え
+	m := new(sync.Mutex)
+	p.Doc.Find("a").Each(func(_ int, s *goquery.Selection) {
+		var linkURL string
+		link, _ := s.Attr("href")
+		abs, _ := filepath.Abs("./")
+		h := sha1.New()
+		if !strings.Contains(link, ".img") && !strings.Contains(link, "http") && !strings.Contains(link, p.Domain) {
+			linkURL = p.DomainScheme + "://" + strings.Join([]string{p.Domain, link}, "/")
+		} else if !strings.Contains(link, ".img") && !strings.Contains(link, httpToken) {
+			linkURL = p.DomainScheme + "://" + link
+		} else {
+			linkURL = link
+		}
+		h.Write([]byte(linkURL))
+		bs := h.Sum(nil)
+		linkPath := fmt.Sprintf("%x", bs)
+		p.LinkMap[link] = strings.Join([]string{abs, ctx.OutputPath, linkPath, "index.html"}, "/")
+		s.SetAttr("href", p.LinkMap[link])
+
+		// ctx.Pages に格納
+		if p.Level+1 <= ctx.Depth {
+			newPage := NewPage(linkURL, p.Level+1)
+			m.Lock()
+			ctx.Pages = append(ctx.Pages, newPage)
+			m.Unlock()
+		}
+	})
+	ctx.Refferer[p.URL] = ""
 }
 
 // WriteHTML html書き出し
