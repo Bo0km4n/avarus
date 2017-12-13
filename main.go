@@ -24,13 +24,10 @@ func init() {
 	flag.StringVar(&outputPath, "o", "output", "output directory")
 	flag.IntVar(&crawlDepth, "d", 1, "search depth")
 	flag.Parse()
-
 }
 
 func main() {
-	ctx.BaseURL = baseURL
-	ctx.Depth = crawlDepth
-	ctx.OutputPath = outputPath
+	ctx = NewContext(baseURL, crawlDepth, outputPath)
 	logrus.Info("Launched scraping...")
 	ctx.Run()
 }
