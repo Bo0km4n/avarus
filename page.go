@@ -58,6 +58,14 @@ func NewPage(url string, level int) Page {
 	return page
 }
 
+func (p *Page) Exec() {
+	p.Init()
+	p.QueuingPages()
+	p.FetchFiles()
+	p.RewriteDoc()
+	p.WriteHTML()
+}
+
 // Init 構造体初期化
 func (p *Page) Init() {
 	doc, err := goquery.NewDocument(p.URL)

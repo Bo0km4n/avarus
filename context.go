@@ -30,23 +30,13 @@ func NewContext(url string, depth int, outputPath string) Context {
 // Run 始動関数
 func (ctx *Context) Run() error {
 	page := NewPage(ctx.BaseURL, 1)
-	page.Init()
-	page.QueuingPages()
-	page.FetchFiles()
-	page.RewriteDoc()
-	page.WriteHTML()
-
+	page.Exec()
 	// async
 	var wg sync.WaitGroup
 	for _, v := range ctx.Pages {
 		wg.Add(1)
-		//pp.Println(v)
 		go func(v Page) {
-			v.Init()
-			v.QueuingPages()
-			v.FetchFiles()
-			v.RewriteDoc()
-			v.WriteHTML()
+			v.Exec()
 			wg.Done()
 		}(v)
 	}
