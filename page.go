@@ -102,9 +102,6 @@ func (p *Page) Init() {
 		}
 	})
 	p.ParseDomain()
-	// h := sha1.New()
-	// h.Write([]byte(p.URL))
-	// bs := h.Sum(nil)
 	p.UUID = getPageName(p.URL)
 	p.SetPath(ctx.OutputPath)
 }
@@ -125,8 +122,6 @@ func (p *Page) QueuingPages() {
 		} else {
 			linkURL = link
 		}
-		//h.Write([]byte(linkURL))
-		//bs := h.Sum(nil)
 		linkPath := getPageName(linkURL)
 		p.LinkMap[link] = strings.Join([]string{abs, ctx.OutputPath, linkPath, "index.html"}, "/")
 		s.SetAttr("href", p.LinkMap[link])
