@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -58,12 +57,17 @@ func NewPage(url string, level int) Page {
 	return page
 }
 
+// Exec ページクローリング実行
 func (p *Page) Exec() {
+	if _, isVisited := ctx.Refferer[p.URL]; isVisited {
+		return
+	}
 	p.Init()
 	p.QueuingPages()
 	p.FetchFiles()
 	p.RewriteDoc()
 	p.WriteHTML()
+	return
 }
 
 // Init 構造体初期化
@@ -98,10 +102,10 @@ func (p *Page) Init() {
 		}
 	})
 	p.ParseDomain()
-	h := sha1.New()
-	h.Write([]byte(p.URL))
-	bs := h.Sum(nil)
-	p.UUID = fmt.Sprintf("%x", bs)
+	// h := sha1.New()
+	// h.Write([]byte(p.URL))
+	// bs := h.Sum(nil)
+	p.UUID = getPageName(p.URL)
 	p.SetPath(ctx.OutputPath)
 }
 
@@ -113,7 +117,7 @@ func (p *Page) QueuingPages() {
 		var linkURL string
 		link, _ := s.Attr("href")
 		abs, _ := filepath.Abs("./")
-		h := sha1.New()
+		//h := sha1.New()
 		if !strings.Contains(link, ".img") && !strings.Contains(link, "http") && !strings.Contains(link, p.Domain) {
 			linkURL = p.DomainScheme + "://" + strings.Join([]string{p.Domain, link}, "/")
 		} else if !strings.Contains(link, ".img") && !strings.Contains(link, httpToken) {
@@ -121,9 +125,9 @@ func (p *Page) QueuingPages() {
 		} else {
 			linkURL = link
 		}
-		h.Write([]byte(linkURL))
-		bs := h.Sum(nil)
-		linkPath := fmt.Sprintf("%x", bs)
+		//h.Write([]byte(linkURL))
+		//bs := h.Sum(nil)
+		linkPath := getPageName(linkURL)
 		p.LinkMap[link] = strings.Join([]string{abs, ctx.OutputPath, linkPath, "index.html"}, "/")
 		s.SetAttr("href", p.LinkMap[link])
 
@@ -317,4 +321,13 @@ func writeFile(filePath string, body []byte) error {
 	defer file.Close()
 	file.Write(body)
 	return nil
+}
+
+func getPageName(url string) string {
+	name := strings.Replace(url, ".", "", -1)
+	name = strings.Replace(name, httpsToken, "", -1)
+	name = strings.Replace(name, httpToken, "", -1)
+	name = strings.Replace(name, "/", "", -1)
+	name = strings.Replace(name, ":", "", -1)
+	return name
 }
