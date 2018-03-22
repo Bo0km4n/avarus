@@ -61,9 +61,7 @@ func replaceCSSImgText(p *Page, text string) string {
 func replaceCSSImgURL(url string) string {
 	url = strings.Replace(url, "url(", "", 1)
 	url = strings.Replace(url, ")", "", 1)
-	url = strings.Replace(url, "\"", "", 1)
-	url = strings.Replace(url, "\"", "", 1)
-	url = strings.Replace(url, "'", "", 1)
-	url = strings.Replace(url, "'", "", 1)
+	url = strings.Replace(url, "\"", "", 2)
+	url = strings.Replace(url, "'", "", 2)
 	return url
 }
