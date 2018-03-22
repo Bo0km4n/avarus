@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"unsafe"
 
+	"github.com/k0kubun/pp"
 	"github.com/sirupsen/logrus"
 
 	"github.com/PuerkitoBio/goquery"
@@ -114,15 +114,17 @@ func (p *Page) QueuingPages() {
 		var linkURL string
 		link, _ := s.Attr("href")
 		abs, _ := filepath.Abs("./")
-		//h := sha1.New()
-		if !strings.Contains(link, ".img") && !strings.Contains(link, "http") && !strings.Contains(link, p.Domain) {
+		if !strings.Contains(link, ".img") && !strings.Contains(link, httpToken) && !strings.Contains(link, httpsToken) && !strings.Contains(link, p.Domain) {
 			linkURL = p.DomainScheme + "://" + strings.Join([]string{p.Domain, link}, "/")
-		} else if !strings.Contains(link, ".img") && !strings.Contains(link, httpToken) {
+		} else if !strings.Contains(link, ".img") && !strings.Contains(link, httpToken) && !strings.Contains(link, httpsToken) {
+			linkURL = p.DomainScheme + "://" + link
+		} else if !strings.Contains(link, httpToken) && !strings.Contains(link, httpsToken) {
 			linkURL = p.DomainScheme + "://" + link
 		} else {
 			linkURL = link
 		}
 		linkPath := getPageName(linkURL)
+		pp.Println(link)
 		p.LinkMap[link] = strings.Join([]string{abs, ctx.OutputPath, linkPath, "index.html"}, "/")
 		s.SetAttr("href", p.LinkMap[link])
 
@@ -174,12 +176,12 @@ func (p *Page) FetchCSS() {
 			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.Domain, k)
 			logrus.Info(fileURL)
 			if err := p.DownloadFile(fileURL, fileTypeCSS, k); err != nil {
-				logrus.Fatal(err)
+				logrus.Warn(err)
 			}
 		} else {
 			logrus.Info(k)
 			if err := p.DownloadFile(k, fileTypeCSS, k); err != nil {
-				logrus.Fatal(err)
+				logrus.Warn(err)
 			}
 		}
 	}
@@ -263,7 +265,7 @@ func (p *Page) DownloadFile(url, t, hashKey string) error {
 		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", ctx.OutputPath, p.UUID, fileTypeCSS, fileName)
 		p.ExtractURL(string(body), url)
 		css := replaceCSSImgText(p, string(body))
-		bs := *(*[]byte)(unsafe.Pointer(&css))
+		bs := []byte(css)
 		writeFile(fileFullPath, bs)
 		// rewrite map
 		abs, _ := filepath.Abs("./")
