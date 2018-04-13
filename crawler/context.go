@@ -1,46 +1,58 @@
-package main
+package crawler
 
 import (
+	"runtime"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
 // Context クロール用状態Context
 type Context struct {
-	BaseURL    string
+	RootURL    string
 	Depth      int
 	OutputPath string
 	Refferer   map[string]string
 	Pages      []Page
 }
 
+// Ctx is Cralwer context
+var Ctx *Context
+
 // NewContext context コンストラクト
-func NewContext(url string, depth int, outputPath string) Context {
-	ctx := Context{
-		BaseURL:    url,
+func NewContext(url string, depth int, outputPath string) *Context {
+	return &Context{
+		RootURL:    url,
 		Depth:      depth,
 		OutputPath: outputPath,
 		Refferer:   map[string]string{},
 		Pages:      []Page{},
 	}
-	return ctx
 }
 
 // Run 始動関数
 func (ctx *Context) Run() error {
-	page := NewPage(ctx.BaseURL, 1)
+	start := time.Now()
+	page := NewPage(ctx.RootURL, 1)
 	page.Exec()
+
+	cpus := runtime.NumCPU()
+	runtime.GOMAXPROCS(cpus)
+	c := make(chan bool, cpus)
 	// async
 	var wg sync.WaitGroup
 	for _, v := range ctx.Pages {
+		c <- true
 		wg.Add(1)
 		go func(v Page) {
+			defer func() { <-c }()
 			v.Exec()
 			wg.Done()
 		}(v)
 	}
 	wg.Wait()
-	logrus.Info("Done!")
+	end := time.Now()
+	logrus.Infof("Result: %d pages, %f seconds\n", len(Ctx.Refferer), (end.Sub(start)).Seconds())
 	return nil
 }
