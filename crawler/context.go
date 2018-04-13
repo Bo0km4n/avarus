@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/k0kubun/pp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,7 +42,6 @@ func (ctx *Context) Run() error {
 	c := make(chan bool, cpus)
 	// async
 	for i := 0; i < ctx.Depth; i++ {
-		pp.Println(ctx.Pages)
 		var wg sync.WaitGroup
 		for _, p := range ctx.Pages {
 			c <- true
