@@ -22,7 +22,7 @@ func init() {
 	}
 	flag.StringVar(&baseURL, "root", "https://www.apple.com/", "base url")
 	flag.StringVar(&outputPath, "o", "output", "output directory")
-	flag.IntVar(&crawlDepth, "depth", 1, "search depth")
+	flag.IntVar(&crawlDepth, "depth", 0, "search depth")
 	flag.Parse()
 }
 

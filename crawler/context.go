@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/k0kubun/pp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -41,17 +42,20 @@ func (ctx *Context) Run() error {
 	runtime.GOMAXPROCS(cpus)
 	c := make(chan bool, cpus)
 	// async
-	var wg sync.WaitGroup
-	for _, v := range ctx.Pages {
-		c <- true
-		wg.Add(1)
-		go func(v Page) {
-			defer func() { <-c }()
-			v.Exec()
-			wg.Done()
-		}(v)
+	for i := 0; i < ctx.Depth; i++ {
+		pp.Println(ctx.Pages)
+		var wg sync.WaitGroup
+		for _, p := range ctx.Pages {
+			c <- true
+			wg.Add(1)
+			go func(p Page) {
+				defer func() { <-c }()
+				p.Exec()
+				wg.Done()
+			}(p)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
 	end := time.Now()
 	logrus.Infof("Result: %d pages, %f seconds\n", len(Ctx.Refferer), (end.Sub(start)).Seconds())
 	return nil

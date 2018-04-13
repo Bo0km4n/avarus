@@ -123,7 +123,7 @@ func (p *Page) QueuingPages() {
 		s.SetAttr("href", p.LinkMap[link])
 
 		// Ctx.Pages に格納
-		if p.Level+1 <= Ctx.Depth {
+		if p.Level <= Ctx.Depth {
 			newPage := NewPage(linkURL, p.Level+1)
 			m.Lock()
 			Ctx.Pages = append(Ctx.Pages, newPage)
@@ -347,19 +347,26 @@ func extractURL(p *Page, line, cssURL string) {
 		ext := filepath.Ext(url)
 		fileFullPath := fmt.Sprintf("%s/%s/%s/%s%s", Ctx.OutputPath, p.UUID, fileTypeIMG, uuid.NewV4().String(), ext)
 		abs, _ := filepath.Abs("./")
+		downloadURL := ""
 		if strings.Contains(url, "../") {
 			orgURL := url
 			relativePath, _ := path.Split(cssURL)
 			relativePath = strings.Replace(relativePath, p.DomainScheme+"://", "", 1)
 			pathArray := strings.Split(relativePath, "/")
 			relativePath = p.DomainScheme + "://" + strings.Join(pathArray[:len(pathArray)-2], "/")
-			url = strings.Replace(url, "../", "", 1)
-			url = strings.Join([]string{relativePath, url}, "/")
+			downloadURL = strings.Replace(url, "../", "", 1)
+			downloadURL = strings.Join([]string{relativePath, downloadURL}, "/")
 			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
 		} else {
-			p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
+			if !strings.Contains(url, httpToken) && !strings.Contains(url, httpsToken) {
+				downloadURL = p.DomainScheme + "://" + p.Domain + url
+				p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
+			} else {
+				downloadURL = url
+				p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
+			}
 		}
-		downloadFileInCSS(p, url, fileFullPath)
+		downloadFileInCSS(p, downloadURL, fileFullPath)
 	}
 }
 
@@ -388,8 +395,8 @@ func replaceCSSImgText(p *Page, text string) string {
 func replaceCSSImgURL(url string) string {
 	url = strings.Replace(url, "url(", "", 1)
 	url = strings.Replace(url, ")", "", 1)
-	url = strings.Replace(url, "\"", "", 2)
-	url = strings.Replace(url, "'", "", 2)
+	url = strings.Replace(url, "\"", "", -1)
+	url = strings.Replace(url, "'", "", -1)
 	return url
 }
 
@@ -397,9 +404,20 @@ func replaceCSSImgURL(url string) string {
 // link = ../../hello.jpg
 // return http://www/google.co.jp/hello.jpg
 func getAbsURLFromRelative(p *Page, link string) string {
+	uri := strings.Replace(p.URL, "http://", "", -1)
+	uri = strings.Replace(uri, "https://", "", -1)
+	paths := strings.Split(uri, "/")
+
+	relativeCount := strings.Count(link, "../")
+	fmt.Println(uri, len(paths), paths, relativeCount)
 	link = strings.Replace(link, "../", "", -1)
-	paths := strings.Split(getPageName(p.URL), "/")
-	relativeCount := strings.Count(link, "../") - 1
-	domain := strings.Join(paths[:len(paths)-relativeCount], "/")
+
+	var domain string
+	if len(paths) < relativeCount {
+		domain = paths[0]
+	} else {
+		domain = strings.Join(paths[:len(paths)-relativeCount], "/")
+	}
 	return p.DomainScheme + "://" + strings.Join([]string{domain, link}, "/")
+
 }
