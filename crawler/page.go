@@ -105,7 +105,7 @@ func (p *Page) Init() {
 		}
 	})
 	p.ParseDomain()
-	p.UUID = p.Domain
+	p.UUID = getPageName(p.URL)
 	p.SetPath(Ctx.OutputPath)
 }
 
@@ -169,12 +169,12 @@ func (p *Page) FetchCSS() {
 	for k := range p.CSSMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
 			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.Domain, k)
-			logrus.Info(fileURL)
+			logrus.Infof("domain: %s, css: %s", p.Domain, fileURL)
 			if err := p.DownloadFile(fileURL, fileTypeCSS, k); err != nil {
 				logrus.Warn(err)
 			}
 		} else {
-			logrus.Info(k)
+			logrus.Infof("domain: %s, css: %s", p.Domain, k)
 			if err := p.DownloadFile(k, fileTypeCSS, k); err != nil {
 				logrus.Warn(err)
 			}
@@ -187,12 +187,12 @@ func (p *Page) FetchIMG() {
 	for k := range p.ImgMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
 			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.Domain, k)
-			logrus.Info(fileURL)
+			logrus.Infof("domain: %s, img: %s", p.Domain, fileURL)
 			if err := p.DownloadFile(fileURL, fileTypeIMG, k); err != nil {
 				logrus.Fatal(err)
 			}
 		} else {
-			logrus.Info(k)
+			logrus.Infof("domain: %s, img: %s", p.Domain, k)
 			if err := p.DownloadFile(k, fileTypeIMG, k); err != nil {
 				logrus.Fatal(err)
 			}
@@ -205,12 +205,12 @@ func (p *Page) FetchJS() {
 	for k := range p.JSMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
 			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.Domain, k)
-			logrus.Info(fileURL)
+			logrus.Infof("domain: %s, javascript: %s", p.Domain, fileURL)
 			if err := p.DownloadFile(fileURL, fileTypeJS, k); err != nil {
 				logrus.Fatal(err)
 			}
 		} else {
-			logrus.Info(k)
+			logrus.Infof("domain: %s, javascript: %s", p.Domain, k)
 			if err := p.DownloadFile(k, fileTypeJS, k); err != nil {
 				logrus.Fatal(err)
 			}
@@ -366,7 +366,7 @@ func extractURL(p *Page, line, cssURL string) {
 			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
 		} else {
 			if !strings.Contains(url, httpToken) && !strings.Contains(url, httpsToken) {
-				downloadURL = p.DomainScheme + "://" + p.Domain + url
+				downloadURL = p.DomainScheme + "://" + p.Domain + "/" + url
 				p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
 			} else {
 				downloadURL = url
@@ -379,7 +379,7 @@ func extractURL(p *Page, line, cssURL string) {
 
 // css内の画像ファイルをダウンロード
 func downloadFileInCSS(p *Page, url string, savePath string) {
-	logrus.Info(url)
+	logrus.Infof("domain: %s, file_in_css: %s", p.Domain, url)
 	response, err := http.Get(url)
 	if err != nil {
 		return

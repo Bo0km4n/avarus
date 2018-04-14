@@ -34,7 +34,6 @@ func NewContext(url string, depth int, outputPath string) *Context {
 // Run 始動関数
 func (ctx *Context) Run() error {
 	start := time.Now()
-	limit := 16
 	page := NewPage(ctx.RootURL, 1)
 	page.Exec()
 
@@ -52,9 +51,6 @@ func (ctx *Context) Run() error {
 				p.Exec()
 				wg.Done()
 			}(p)
-			if len(ctx.Refferer) >= limit {
-				break
-			}
 		}
 		wg.Wait()
 	}
