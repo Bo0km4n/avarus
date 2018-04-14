@@ -21,6 +21,7 @@ const (
 	httpToken        = "http://"
 	httpsToken       = "https://"
 	relativeToken    = "../"
+	currentPathToken = "./"
 	doubleSlashToken = "//"
 	fileTypeCSS      = "css"
 	fileTypeIMG      = "img"
@@ -104,7 +105,7 @@ func (p *Page) Init() {
 		}
 	})
 	p.ParseDomain()
-	p.UUID = getPageName(p.URL)
+	p.UUID = p.Domain
 	p.SetPath(Ctx.OutputPath)
 }
 
@@ -348,7 +349,7 @@ func extractURL(p *Page, line, cssURL string) {
 		fileFullPath := fmt.Sprintf("%s/%s/%s/%s%s", Ctx.OutputPath, p.UUID, fileTypeIMG, uuid.NewV4().String(), ext)
 		abs, _ := filepath.Abs("./")
 		downloadURL := ""
-		if strings.Contains(url, "../") {
+		if isStartWithRelative(url) {
 			orgURL := url
 			relativePath, _ := path.Split(cssURL)
 			relativePath = strings.Replace(relativePath, p.DomainScheme+"://", "", 1)
@@ -356,6 +357,12 @@ func extractURL(p *Page, line, cssURL string) {
 			relativePath = p.DomainScheme + "://" + strings.Join(pathArray[:len(pathArray)-2], "/")
 			downloadURL = strings.Replace(url, "../", "", 1)
 			downloadURL = strings.Join([]string{relativePath, downloadURL}, "/")
+			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
+		} else if isStartWithCurrentPath(url) {
+			orgURL := url
+			paths := strings.Split(p.URL, "/")
+			downloadURL = p.DomainScheme + "://" + strings.Join(paths[:len(paths)-1], "/")
+			downloadURL = downloadURL + "/" + strings.Replace(url, currentPathToken, "", 1)
 			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
 		} else {
 			if !strings.Contains(url, httpToken) && !strings.Contains(url, httpsToken) {

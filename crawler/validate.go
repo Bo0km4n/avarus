@@ -21,6 +21,13 @@ func isStartWithRelative(link string) bool {
 	return false
 }
 
+func isStartWithCurrentPath(link string) bool {
+	if len(currentPathToken) <= len(link) {
+		return string([]rune(link)[:len(currentPathToken)]) == currentPathToken
+	}
+	return false
+}
+
 func isStartWithDoubleSlash(link string) bool {
 	if len(doubleSlashToken) <= len(link) {
 		return string([]rune(link)[:len(doubleSlashToken)]) == doubleSlashToken
