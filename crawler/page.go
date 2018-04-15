@@ -32,7 +32,7 @@ const (
 type Page struct {
 	Level        int
 	Doc          *goquery.Document
-	Domain       string
+	FQDN         string
 	DomainScheme string
 	Path         string
 	URL          string
@@ -168,13 +168,13 @@ func (p *Page) FetchFiles() {
 func (p *Page) FetchCSS() {
 	for k := range p.CSSMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
-			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.Domain, k)
-			logrus.Infof("domain: %s, css: %s", p.Domain, fileURL)
+			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.FQDN, k)
+			logrus.Infof("FQDN: %s, css: %s", p.FQDN, fileURL)
 			if err := p.DownloadFile(fileURL, fileTypeCSS, k); err != nil {
 				logrus.Warn(err)
 			}
 		} else {
-			logrus.Infof("domain: %s, css: %s", p.Domain, k)
+			logrus.Infof("FQDN: %s, css: %s", p.FQDN, k)
 			if err := p.DownloadFile(k, fileTypeCSS, k); err != nil {
 				logrus.Warn(err)
 			}
@@ -186,13 +186,13 @@ func (p *Page) FetchCSS() {
 func (p *Page) FetchIMG() {
 	for k := range p.ImgMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
-			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.Domain, k)
-			logrus.Infof("domain: %s, img: %s", p.Domain, fileURL)
+			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.FQDN, k)
+			logrus.Infof("FQDN: %s, img: %s", p.FQDN, fileURL)
 			if err := p.DownloadFile(fileURL, fileTypeIMG, k); err != nil {
 				logrus.Fatal(err)
 			}
 		} else {
-			logrus.Infof("domain: %s, img: %s", p.Domain, k)
+			logrus.Infof("FQDN: %s, img: %s", p.FQDN, k)
 			if err := p.DownloadFile(k, fileTypeIMG, k); err != nil {
 				logrus.Fatal(err)
 			}
@@ -204,13 +204,13 @@ func (p *Page) FetchIMG() {
 func (p *Page) FetchJS() {
 	for k := range p.JSMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
-			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.Domain, k)
-			logrus.Infof("domain: %s, javascript: %s", p.Domain, fileURL)
+			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.FQDN, k)
+			logrus.Infof("FQDN: %s, javascript: %s", p.FQDN, fileURL)
 			if err := p.DownloadFile(fileURL, fileTypeJS, k); err != nil {
 				logrus.Fatal(err)
 			}
 		} else {
-			logrus.Infof("domain: %s, javascript: %s", p.Domain, k)
+			logrus.Infof("FQDN: %s, javascript: %s", p.FQDN, k)
 			if err := p.DownloadFile(k, fileTypeJS, k); err != nil {
 				logrus.Fatal(err)
 			}
@@ -230,7 +230,7 @@ func (p *Page) getLinkURL(link string) string {
 	case isStartWithRelative(link):
 		return getAbsURLFromRelative(p, link)
 	}
-	return p.DomainScheme + "://" + strings.Join([]string{p.Domain, link}, "/")
+	return p.DomainScheme + "://" + strings.Join([]string{p.FQDN, link}, "/")
 }
 
 // SetLevel レベル設定
@@ -255,7 +255,7 @@ func (p *Page) ParseDomain() {
 	if err != nil {
 		return
 	}
-	p.Domain = u.Host
+	p.FQDN = u.Host
 	p.DomainScheme = u.Scheme
 }
 
@@ -366,7 +366,7 @@ func extractURL(p *Page, line, cssURL string) {
 			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
 		} else {
 			if !strings.Contains(url, httpToken) && !strings.Contains(url, httpsToken) {
-				downloadURL = p.DomainScheme + "://" + p.Domain + "/" + url
+				downloadURL = p.DomainScheme + "://" + p.FQDN + "/" + url
 				p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
 			} else {
 				downloadURL = url
@@ -379,7 +379,7 @@ func extractURL(p *Page, line, cssURL string) {
 
 // css内の画像ファイルをダウンロード
 func downloadFileInCSS(p *Page, url string, savePath string) {
-	logrus.Infof("domain: %s, file_in_css: %s", p.Domain, url)
+	logrus.Infof("FQDN: %s, file_in_css: %s", p.FQDN, url)
 	response, err := http.Get(url)
 	if err != nil {
 		return
