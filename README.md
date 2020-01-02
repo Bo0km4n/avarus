@@ -17,3 +17,4 @@ We supported Go version 1.11 and Go modules.
 
 ## Delete output
 `make clean`
+
