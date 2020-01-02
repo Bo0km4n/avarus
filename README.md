@@ -1,7 +1,8 @@
-## How to use
+## How to build and use
+We supported Go version 1.11 and Go modules.
+
 1. `git clone https://github.com/Bo0km4n/avarus.git`
 2. `cd avarus`
-3. `dep ensure`
 3. `make`
 4. `./avarus`
 
