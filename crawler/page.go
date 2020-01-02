@@ -30,126 +30,124 @@ const (
 
 // Page htmlページ構造体
 type Page struct {
-	Level        int
-	Doc          *goquery.Document
-	FQDN         string
-	DomainScheme string
-	Path         string
-	URL          string
-	UUID         string
-	HTML         string
-	ImgMap       map[string]string
-	CSSMap       map[string]string
-	LinkMap      map[string]string
-	JSMap        map[string]string
-	CSSImgMap    map[string]string
+	level        int
+	doc          *goquery.Document
+	fqdn         string
+	domainSchema string
+	path         string
+	url          string
+	uuid         string
+	imgMap       map[string]string
+	cssMap       map[string]string
+	linkMap      map[string]string
+	jsMap        map[string]string
+	cssImgMap    map[string]string
 }
 
 // NewPage Page生成
 func NewPage(url string, level int) Page {
 	page := Page{
-		Level:     level,
-		URL:       url,
-		HTML:      "",
-		ImgMap:    map[string]string{},
-		LinkMap:   map[string]string{},
-		JSMap:     map[string]string{},
-		CSSMap:    map[string]string{},
-		CSSImgMap: map[string]string{},
+		level:     level,
+		url:       url,
+		imgMap:    map[string]string{},
+		linkMap:   map[string]string{},
+		jsMap:     map[string]string{},
+		cssMap:    map[string]string{},
+		cssImgMap: map[string]string{},
 	}
 	return page
 }
 
 // Exec ページクローリング実行
 func (p *Page) Exec() {
-	if _, isVisited := Ctx.Refferer[p.URL]; isVisited {
+	if _, isVisited := E.Refferer[p.url]; isVisited {
 		return
 	}
-	p.Init()
-	p.QueuingPages()
-	p.FetchFiles()
-	p.RewriteDoc()
-	p.WriteHTML()
+	p.start()
+	p.queuingPages()
+	p.fetchFiles()
+	p.rewriteDoc()
+	p.writeHTML()
 	return
 }
 
 // Init 構造体初期化
-func (p *Page) Init() {
-	doc, err := goquery.NewDocument(p.URL)
-	p.Doc = doc
+func (p *Page) start() {
+	doc, err := goquery.NewDocument(p.url)
+	p.doc = doc
 	if err != nil {
-		logrus.Fatalf("Failed get document %s", p.URL)
+		logrus.Fatalf("Failed get document %s", p.url)
 		return
 	}
 	doc.Find("a").Each(func(_ int, s *goquery.Selection) {
 		link, _ := s.Attr("href")
 		if !strings.Contains(link, ".img") && (strings.Contains(link, ".html") || strings.Contains(link, "http")) {
-			p.LinkMap[link] = ""
+			p.linkMap[link] = ""
 		}
 	})
 	doc.Find("script").Each(func(_ int, s *goquery.Selection) {
 		js, _ := s.Attr("src")
 		if strings.Contains(js, ".js") {
-			p.JSMap[js] = ""
+			p.jsMap[js] = ""
 		}
 	})
 	doc.Find("img").Each(func(_ int, s *goquery.Selection) {
 		img, _ := s.Attr("src")
-		p.ImgMap[img] = ""
+		p.imgMap[img] = ""
 	})
 	doc.Find("link").Each(func(_ int, s *goquery.Selection) {
 		rel, _ := s.Attr("rel")
 		css, _ := s.Attr("href")
 		if strings.Contains(rel, "stylesheet") {
-			p.CSSMap[css] = ""
+			p.cssMap[css] = ""
 		}
 	})
-	p.ParseDomain()
-	p.UUID = getPageName(p.URL)
-	p.SetPath(Ctx.OutputPath)
+	p.parseDomain()
+	p.uuid = getPageName(p.url)
+	p.SetPath(E.OutputPath)
 }
 
-// QueuingPages リンクページを格納
-func (p *Page) QueuingPages() {
+// queuingPages リンクページを格納
+func (p *Page) queuingPages() {
 	// Link書き換え
 	m := new(sync.Mutex)
-	p.Doc.Find("a").Each(func(_ int, s *goquery.Selection) {
+	p.doc.Find("a").Each(func(_ int, s *goquery.Selection) {
 		var linkURL string
 		link, _ := s.Attr("href")
 		abs, _ := filepath.Abs("./")
 		linkURL = p.getLinkURL(link)
 		linkPath := getPageName(linkURL)
 
-		p.LinkMap[link] = strings.Join([]string{abs, Ctx.OutputPath, linkPath, "index.html"}, "/")
-		s.SetAttr("href", p.LinkMap[link])
+		p.linkMap[link] = strings.Join([]string{abs, E.OutputPath, linkPath, "index.html"}, "/")
+		s.SetAttr("href", p.linkMap[link])
 
-		// Ctx.Pages に格納
-		if p.Level <= Ctx.Depth {
-			newPage := NewPage(linkURL, p.Level+1)
+		// E.Pages に格納
+		if p.level <= E.Depth {
+			newPage := NewPage(linkURL, p.level+1)
 			m.Lock()
-			Ctx.Pages = append(Ctx.Pages, newPage)
+			E.Pages = append(E.Pages, newPage)
 			m.Unlock()
 		}
 	})
-	Ctx.Refferer[p.URL] = ""
+	E.Refferer[p.url] = ""
 }
 
-// WriteHTML html書き出し
-func (p *Page) WriteHTML() error {
-	file, err := os.Create(Ctx.OutputPath + "/" + p.UUID + "/index.html")
+// writeHTML html書き出し
+func (p *Page) writeHTML() error {
+	file, err := os.Create(E.OutputPath + "/" + p.uuid + "/index.html")
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	text, _ := p.Doc.Html()
+	text, _ := p.doc.Html()
 	file.Write(([]byte)(text))
 	return nil
 }
 
-// FetchFiles img, css, jsダウンロード
-func (p *Page) FetchFiles() {
-	dirs := fmt.Sprintf("%s/%s", Ctx.OutputPath, p.UUID)
+// fetchFiles img, css, jsダウンロード
+func (p *Page) fetchFiles() {
+	dirs := fmt.Sprintf("%s/%s", E.OutputPath, p.uuid)
 	if err := os.MkdirAll(dirs+"/"+fileTypeCSS, 0777); err != nil {
 		logrus.Fatal(err)
 	}
@@ -159,23 +157,23 @@ func (p *Page) FetchFiles() {
 	if err := os.MkdirAll(dirs+"/"+fileTypeJS, 0777); err != nil {
 		logrus.Fatal(err)
 	}
-	p.FetchCSS()
-	p.FetchIMG()
-	p.FetchJS()
+	p.fetchCSS()
+	p.fetchIMG()
+	p.fetchJS()
 }
 
 // FetchCSS cssファイル取得
-func (p *Page) FetchCSS() {
-	for k := range p.CSSMap {
+func (p *Page) fetchCSS() {
+	for k := range p.cssMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
-			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.FQDN, k)
-			logrus.Infof("FQDN: %s, css: %s", p.FQDN, fileURL)
-			if err := p.DownloadFile(fileURL, fileTypeCSS, k); err != nil {
+			fileURL := fmt.Sprintf("%s://%s/%s", p.domainSchema, p.fqdn, k)
+			logrus.Infof("FQDN: %s, css: %s", p.fqdn, fileURL)
+			if err := p.downloadFile(fileURL, fileTypeCSS, k); err != nil {
 				logrus.Warn(err)
 			}
 		} else {
-			logrus.Infof("FQDN: %s, css: %s", p.FQDN, k)
-			if err := p.DownloadFile(k, fileTypeCSS, k); err != nil {
+			logrus.Infof("FQDN: %s, css: %s", p.fqdn, k)
+			if err := p.downloadFile(k, fileTypeCSS, k); err != nil {
 				logrus.Warn(err)
 			}
 		}
@@ -183,17 +181,17 @@ func (p *Page) FetchCSS() {
 }
 
 // FetchIMG imgファイル取得
-func (p *Page) FetchIMG() {
-	for k := range p.ImgMap {
+func (p *Page) fetchIMG() {
+	for k := range p.imgMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
-			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.FQDN, k)
-			logrus.Infof("FQDN: %s, img: %s", p.FQDN, fileURL)
-			if err := p.DownloadFile(fileURL, fileTypeIMG, k); err != nil {
+			fileURL := fmt.Sprintf("%s://%s/%s", p.domainSchema, p.fqdn, k)
+			logrus.Infof("FQDN: %s, img: %s", p.fqdn, fileURL)
+			if err := p.downloadFile(fileURL, fileTypeIMG, k); err != nil {
 				logrus.Fatal(err)
 			}
 		} else {
-			logrus.Infof("FQDN: %s, img: %s", p.FQDN, k)
-			if err := p.DownloadFile(k, fileTypeIMG, k); err != nil {
+			logrus.Infof("FQDN: %s, img: %s", p.fqdn, k)
+			if err := p.downloadFile(k, fileTypeIMG, k); err != nil {
 				logrus.Fatal(err)
 			}
 		}
@@ -201,17 +199,17 @@ func (p *Page) FetchIMG() {
 }
 
 // FetchJS jsファイル取得
-func (p *Page) FetchJS() {
-	for k := range p.JSMap {
+func (p *Page) fetchJS() {
+	for k := range p.jsMap {
 		if !strings.Contains(k, httpToken) && !strings.Contains(k, httpsToken) {
-			fileURL := fmt.Sprintf("%s://%s/%s", p.DomainScheme, p.FQDN, k)
-			logrus.Infof("FQDN: %s, javascript: %s", p.FQDN, fileURL)
-			if err := p.DownloadFile(fileURL, fileTypeJS, k); err != nil {
+			fileURL := fmt.Sprintf("%s://%s/%s", p.domainSchema, p.fqdn, k)
+			logrus.Infof("FQDN: %s, javascript: %s", p.fqdn, fileURL)
+			if err := p.downloadFile(fileURL, fileTypeJS, k); err != nil {
 				logrus.Fatal(err)
 			}
 		} else {
-			logrus.Infof("FQDN: %s, javascript: %s", p.FQDN, k)
-			if err := p.DownloadFile(k, fileTypeJS, k); err != nil {
+			logrus.Infof("FQDN: %s, javascript: %s", p.fqdn, k)
+			if err := p.downloadFile(k, fileTypeJS, k); err != nil {
 				logrus.Fatal(err)
 			}
 		}
@@ -226,41 +224,41 @@ func (p *Page) getLinkURL(link string) string {
 	case isStartWithHTTPS(link):
 		return link
 	case isStartWithDoubleSlash(link):
-		return p.DomainScheme + ":" + link
+		return p.domainSchema + ":" + link
 	case isStartWithRelative(link):
 		return getAbsURLFromRelative(p, link)
 	}
-	return p.DomainScheme + "://" + strings.Join([]string{p.FQDN, link}, "/")
+	return p.domainSchema + "://" + strings.Join([]string{p.fqdn, link}, "/")
 }
 
 // SetLevel レベル設定
 func (p *Page) SetLevel(n int) {
-	p.Level = n
+	p.level = n
 }
 
 // SetDoc goquery doc セット
 func (p *Page) SetDoc(doc *goquery.Document) {
-	p.Doc = doc
+	p.doc = doc
 }
 
 // SetPath ファイル出力時のパス設定
 func (p *Page) SetPath(base string) {
-	s := strings.Join([]string{base, p.UUID}, "/") + "/"
-	p.Path = s
+	s := strings.Join([]string{base, p.uuid}, "/") + "/"
+	p.path = s
 }
 
-// ParseDomain ドメイン取得
-func (p *Page) ParseDomain() {
-	u, err := url.Parse(p.URL)
+// parseDomain ドメイン取得
+func (p *Page) parseDomain() {
+	u, err := url.Parse(p.url)
 	if err != nil {
 		return
 	}
-	p.FQDN = u.Host
-	p.DomainScheme = u.Scheme
+	p.fqdn = u.Host
+	p.domainSchema = u.Scheme
 }
 
 // DownloadFile ファイルのダウンロード
-func (p *Page) DownloadFile(url, t, hashKey string) error {
+func (p *Page) downloadFile(url, t, hashKey string) error {
 	response, err := http.Get(url)
 	if err != nil {
 		return err
@@ -272,49 +270,49 @@ func (p *Page) DownloadFile(url, t, hashKey string) error {
 	_, fileName := path.Split(url)
 	switch t {
 	case fileTypeCSS:
-		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", Ctx.OutputPath, p.UUID, fileTypeCSS, fileName)
+		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", E.OutputPath, p.uuid, fileTypeCSS, fileName)
 		extractURL(p, string(body), url)
 		css := replaceCSSImgText(p, string(body))
 		bs := []byte(css)
 		writeFile(fileFullPath, bs)
 		// rewrite map
 		abs, _ := filepath.Abs("./")
-		p.CSSMap[hashKey] = strings.Join([]string{abs, fileFullPath}, "/")
+		p.cssMap[hashKey] = strings.Join([]string{abs, fileFullPath}, "/")
 	case fileTypeIMG:
-		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", Ctx.OutputPath, p.UUID, fileTypeIMG, fileName)
+		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", E.OutputPath, p.uuid, fileTypeIMG, fileName)
 		writeFile(fileFullPath, body)
 		// rewrite map
 		abs, _ := filepath.Abs("./")
-		p.ImgMap[hashKey] = strings.Join([]string{abs, fileFullPath}, "/")
+		p.imgMap[hashKey] = strings.Join([]string{abs, fileFullPath}, "/")
 	case fileTypeJS:
-		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", Ctx.OutputPath, p.UUID, fileTypeJS, fileName)
+		fileFullPath := fmt.Sprintf("%s/%s/%s/%s", E.OutputPath, p.uuid, fileTypeJS, fileName)
 		writeFile(fileFullPath, body)
 		// rewrite map
 		abs, _ := filepath.Abs("./")
-		p.JSMap[hashKey] = strings.Join([]string{abs, fileFullPath}, "/")
+		p.jsMap[hashKey] = strings.Join([]string{abs, fileFullPath}, "/")
 	default:
 		break
 	}
 	return nil
 }
 
-// RewriteDoc img,css,js参照のためattrの書き換え
-func (p *Page) RewriteDoc() {
-	p.Doc.Find("script").Each(func(_ int, s *goquery.Selection) {
+// rewriteDoc img,css,js参照のためattrの書き換え
+func (p *Page) rewriteDoc() {
+	p.doc.Find("script").Each(func(_ int, s *goquery.Selection) {
 		js, _ := s.Attr("src")
 		if strings.Contains(js, ".js") {
-			s.SetAttr("src", p.JSMap[js])
+			s.SetAttr("src", p.jsMap[js])
 		}
 	})
-	p.Doc.Find("img").Each(func(_ int, s *goquery.Selection) {
+	p.doc.Find("img").Each(func(_ int, s *goquery.Selection) {
 		img, _ := s.Attr("src")
-		s.SetAttr("src", p.ImgMap[img])
+		s.SetAttr("src", p.imgMap[img])
 	})
-	p.Doc.Find("link").Each(func(_ int, s *goquery.Selection) {
+	p.doc.Find("link").Each(func(_ int, s *goquery.Selection) {
 		rel, _ := s.Attr("rel")
 		css, _ := s.Attr("href")
 		if strings.Contains(rel, "stylesheet") {
-			s.SetAttr("href", p.CSSMap[css])
+			s.SetAttr("href", p.cssMap[css])
 		}
 	})
 }
@@ -346,31 +344,31 @@ func extractURL(p *Page, line, cssURL string) {
 	for _, v := range result {
 		url := replaceCSSImgURL(v[0])
 		ext := filepath.Ext(url)
-		fileFullPath := fmt.Sprintf("%s/%s/%s/%s%s", Ctx.OutputPath, p.UUID, fileTypeIMG, uuid.NewV4().String(), ext)
+		fileFullPath := fmt.Sprintf("%s/%s/%s/%s%s", E.OutputPath, p.uuid, fileTypeIMG, uuid.NewV4().String(), ext)
 		abs, _ := filepath.Abs("./")
 		downloadURL := ""
 		if isStartWithRelative(url) {
 			orgURL := url
 			relativePath, _ := path.Split(cssURL)
-			relativePath = strings.Replace(relativePath, p.DomainScheme+"://", "", 1)
+			relativePath = strings.Replace(relativePath, p.domainSchema+"://", "", 1)
 			pathArray := strings.Split(relativePath, "/")
-			relativePath = p.DomainScheme + "://" + strings.Join(pathArray[:len(pathArray)-2], "/")
+			relativePath = p.domainSchema + "://" + strings.Join(pathArray[:len(pathArray)-2], "/")
 			downloadURL = strings.Replace(url, "../", "", 1)
 			downloadURL = strings.Join([]string{relativePath, downloadURL}, "/")
-			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
+			p.cssImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
 		} else if isStartWithCurrentPath(url) {
 			orgURL := url
-			paths := strings.Split(p.URL, "/")
-			downloadURL = p.DomainScheme + "://" + strings.Join(paths[:len(paths)-1], "/")
+			paths := strings.Split(p.url, "/")
+			downloadURL = p.domainSchema + "://" + strings.Join(paths[:len(paths)-1], "/")
 			downloadURL = downloadURL + "/" + strings.Replace(url, currentPathToken, "", 1)
-			p.CSSImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
+			p.cssImgMap[orgURL] = strings.Join([]string{abs, fileFullPath}, "/")
 		} else {
 			if !strings.Contains(url, httpToken) && !strings.Contains(url, httpsToken) {
-				downloadURL = p.DomainScheme + "://" + p.FQDN + "/" + url
-				p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
+				downloadURL = p.domainSchema + "://" + p.fqdn + "/" + url
+				p.cssImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
 			} else {
 				downloadURL = url
-				p.CSSImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
+				p.cssImgMap[url] = strings.Join([]string{abs, fileFullPath}, "/")
 			}
 		}
 		downloadFileInCSS(p, downloadURL, fileFullPath)
@@ -379,7 +377,7 @@ func extractURL(p *Page, line, cssURL string) {
 
 // css内の画像ファイルをダウンロード
 func downloadFileInCSS(p *Page, url string, savePath string) {
-	logrus.Infof("FQDN: %s, file_in_css: %s", p.FQDN, url)
+	logrus.Infof("FQDN: %s, file_in_css: %s", p.fqdn, url)
 	response, err := http.Get(url)
 	if err != nil {
 		return
@@ -393,7 +391,7 @@ func downloadFileInCSS(p *Page, url string, savePath string) {
 
 // css内のファイルパスをローカルのパスに書き換え
 func replaceCSSImgText(p *Page, text string) string {
-	for k, v := range p.CSSImgMap {
+	for k, v := range p.cssImgMap {
 		text = strings.Replace(text, k, v, 1)
 	}
 	return text
@@ -407,11 +405,11 @@ func replaceCSSImgURL(url string) string {
 	return url
 }
 
-// p.URL = http://www.google.co.jp/hoge/index.html
+// p.url = http://www.google.co.jp/hoge/index.html
 // link = ../../hello.jpg
 // return http://www/google.co.jp/hello.jpg
 func getAbsURLFromRelative(p *Page, link string) string {
-	uri := strings.Replace(p.URL, "http://", "", -1)
+	uri := strings.Replace(p.url, "http://", "", -1)
 	uri = strings.Replace(uri, "https://", "", -1)
 	paths := strings.Split(uri, "/")
 
@@ -425,6 +423,6 @@ func getAbsURLFromRelative(p *Page, link string) string {
 	} else {
 		domain = strings.Join(paths[:len(paths)-relativeCount], "/")
 	}
-	return p.DomainScheme + "://" + strings.Join([]string{domain, link}, "/")
+	return p.domainSchema + "://" + strings.Join([]string{domain, link}, "/")
 
 }

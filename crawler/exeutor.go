@@ -8,8 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Context クロール用状態Context
-type Context struct {
+// Executor
+type Executor struct {
 	RootURL    string
 	Depth      int
 	OutputPath string
@@ -17,12 +17,10 @@ type Context struct {
 	Pages      []Page
 }
 
-// Ctx is Cralwer context
-var Ctx *Context
+var E *Executor
 
-// NewContext context コンストラクト
-func NewContext(url string, depth int, outputPath string) *Context {
-	return &Context{
+func SetExecutor(url string, depth int, outputPath string) {
+	E = &Executor{
 		RootURL:    url,
 		Depth:      depth,
 		OutputPath: outputPath,
@@ -31,19 +29,19 @@ func NewContext(url string, depth int, outputPath string) *Context {
 	}
 }
 
-// Run 始動関数
-func (ctx *Context) Run() error {
+// Run is entry point
+func Run() error {
 	start := time.Now()
-	page := NewPage(ctx.RootURL, 1)
+	page := NewPage(E.RootURL, 1)
 	page.Exec()
 
 	cpus := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpus)
 	c := make(chan bool, cpus)
 	// async
-	for i := 0; i < ctx.Depth; i++ {
+	for i := 0; i < E.Depth; i++ {
 		var wg sync.WaitGroup
-		for _, p := range ctx.Pages {
+		for _, p := range E.Pages {
 			c <- true
 			wg.Add(1)
 			go func(p Page) {
@@ -55,6 +53,6 @@ func (ctx *Context) Run() error {
 		wg.Wait()
 	}
 	end := time.Now()
-	logrus.Infof("Result: %d pages, %f seconds\n", len(Ctx.Refferer), (end.Sub(start)).Seconds())
+	logrus.Infof("Result: %d pages, %f seconds\n", len(E.Refferer), (end.Sub(start)).Seconds())
 	return nil
 }

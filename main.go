@@ -27,7 +27,7 @@ func init() {
 }
 
 func main() {
-	crawler.Ctx = crawler.NewContext(baseURL, crawlDepth, outputPath)
+	crawler.SetExecutor(baseURL, crawlDepth, outputPath)
 	logrus.Info("Launched scraping...")
-	crawler.Ctx.Run()
+	crawler.Run()
 }
